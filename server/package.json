@@ -1,0 +1,13 @@
+{
+  "name": "ai-model-form-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.1.0"
+  }
+}

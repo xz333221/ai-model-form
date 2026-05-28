@@ -1,0 +1,54 @@
+{
+  "name": "ai-model-form",
+  "version": "0.1.0",
+  "description": "Vue 3 AI model configuration form component backed by a Node.js Express middleware. Supports adding, testing, and managing AI model providers.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xuze/ai-model-form.git"
+  },
+  "homepage": "https://github.com/xuze/ai-model-form#readme",
+  "bugs": {
+    "url": "https://github.com/xuze/ai-model-form/issues"
+  },
+  "keywords": [
+    "ai-model",
+    "model-form",
+    "openai",
+    "api-config",
+    "vue3",
+    "express",
+    "llm"
+  ],
+  "license": "MIT",
+  "author": "xuze",
+  "type": "module",
+  "exports": {
+    ".": "./server/middleware.js",
+    "./client": "./dist/ai-model-form.mjs",
+    "./server": "./server/middleware.js",
+    "./dist/ai-model-form.css": "./dist/ai-model-form.css"
+  },
+  "main": "./server/middleware.js",
+  "files": [
+    "dist",
+    "server/middleware.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build": "vite build --config vite.lib.config.js",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0",
+    "vue": ">=3.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7",
+    "concurrently": "^9.1.2",
+    "vite": "^7.0.0"
+  }
+}
