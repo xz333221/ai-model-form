@@ -33,6 +33,25 @@
   --t: 150ms ease;
 }
 
+[data-theme="light"] {
+  --bg:          #F8FAFC;
+  --bg-surface:  #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --border:      #E2E8F0;
+  --border-focus:#2563EB;
+  --primary:     #2563EB;
+  --primary-hover:#1D4ED8;
+  --primary-dim: rgba(37,99,235,.1);
+  --success:     #059669;
+  --success-dim: rgba(5,150,105,.1);
+  --error:       #DC2626;
+  --error-dim:   rgba(220,38,38,.1);
+  --warning:     #D97706;
+  --text:        #0F172A;
+  --text-dim:    #475569;
+  --text-muted:  #94A3B8;
+}
+
 html, body {
   height: 100%;
   background: var(--bg);
@@ -41,6 +60,7 @@ html, body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background var(--t), color var(--t);
 }
 
 #app {

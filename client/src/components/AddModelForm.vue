@@ -8,7 +8,8 @@
       </label>
       <div class="combobox" :class="{ open: endpointOpen, error: errors.endpoint }">
         <div class="combo-input-row">
-          <SvgIcon name="globe" :size="15" color="var(--text-dim)" class="field-icon" />
+          <img v-if="selectedProvider" class="field-icon provider-logo" :src="logoUrl(selectedProvider.icon)" :alt="selectedProvider.label" width="16" height="16" @error="$event.target.style.display='none'" />
+          <SvgIcon v-else name="globe" :size="15" color="var(--text-dim)" class="field-icon" />
           <input
             ref="endpointInputRef"
             v-model="form.endpoint"
@@ -23,6 +24,15 @@
             @keydown.tab="endpointOpen = false"
           />
           <button
+            v-if="form.endpoint"
+            type="button"
+            class="combo-clear"
+            tabindex="-1"
+            @mousedown.prevent="form.endpoint = ''; endpointOpen = false"
+          >
+            <SvgIcon name="close" :size="12" color="var(--text-dim)" />
+          </button>
+          <button
             type="button"
             class="combo-arrow"
             tabindex="-1"
@@ -36,10 +46,11 @@
             v-for="opt in filteredEndpoints"
             :key="opt.url"
             type="button"
-            class="dropdown-item"
+            class="dropdown-item has-logo"
             :class="{ active: form.endpoint === opt.url }"
             @mousedown.prevent="selectEndpointOption(opt)"
           >
+            <img class="item-logo" :src="logoUrl(opt.icon)" :alt="opt.label" width="16" height="16" @error="$event.target.style.display='none'" />
             <span class="item-label">{{ opt.label }}</span>
             <span class="item-url">{{ opt.url }}</span>
             <SvgIcon v-if="form.endpoint === opt.url" name="check" :size="13" color="var(--primary)" class="item-check" />
@@ -60,11 +71,21 @@
         <input
           v-model="form.apiKey"
           :type="showKey ? 'text' : 'password'"
-          class="text-input"
+          class="text-input has-two-right"
           placeholder="输入 API Key"
           autocomplete="new-password"
           spellcheck="false"
         />
+        <button
+          v-show="form.apiKey"
+          type="button"
+          class="eye-btn"
+          style="right: 34px"
+          tabindex="-1"
+          @click="form.apiKey = ''"
+        >
+          <SvgIcon name="close" :size="12" color="var(--text-dim)" />
+        </button>
         <button
           type="button"
           class="eye-btn"
@@ -98,6 +119,15 @@
             @keydown.escape="modelOpen = false"
             @keydown.tab="modelOpen = false"
           />
+          <button
+            v-if="form.modelName"
+            type="button"
+            class="combo-clear"
+            tabindex="-1"
+            @mousedown.prevent="form.modelName = ''; modelOpen = false"
+          >
+            <SvgIcon name="close" :size="12" color="var(--text-dim)" />
+          </button>
           <button
             type="button"
             class="combo-arrow"
@@ -145,6 +175,15 @@
           placeholder="默认使用模型名称"
           autocomplete="off"
         />
+        <button
+          v-show="form.displayName"
+          type="button"
+          class="eye-btn"
+          tabindex="-1"
+          @click="form.displayName = ''"
+        >
+          <SvgIcon name="close" :size="12" color="var(--text-dim)" />
+        </button>
       </div>
     </div>
 
@@ -184,7 +223,18 @@ const props = defineProps({
   apiBase: { type: String, default: '/api/ai-model' },
   /** Pre-fill values for editing an existing model */
   initial: { type: Object, default: null },
+  /** Current theme: 'dark' | 'light' */
+  theme: { type: String, default: 'dark' },
 });
+
+// ===== Provider logos =====
+const LOGO_CDN = 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png';
+function logoUrl(icon) {
+  // Color icons (-color suffix) look good on any background; use dark/ folder
+  if (icon.endsWith('-color')) return `${LOGO_CDN}/dark/${icon}.png`;
+  // Mono icons: switch dark/light folder with theme
+  return `${LOGO_CDN}/${props.theme}/${icon}.png`;
+}
 
 const emit = defineEmits(['save', 'cancel', 'test-success', 'test-fail']);
 
@@ -218,23 +268,25 @@ const fetchedModels = ref([]);
 // ===== Static provider list =====
 
 const providers = [
-  { label: 'OpenAI', url: 'https://api.openai.com/v1' },
-  { label: 'Anthropic (Claude)', url: 'https://api.anthropic.com/v1' },
-  { label: 'DeepSeek', url: 'https://api.deepseek.com/v1' },
-  { label: 'Google (Gemini)', url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
-  { label: 'xAI (Grok)', url: 'https://api.x.ai/v1' },
-  { label: 'Meta (Llama)', url: 'https://api.llama-api.com/v1' },
-  { label: 'Mistral AI', url: 'https://api.mistral.ai/v1' },
-  { label: 'MiniMax', url: 'https://api.minimaxi.com/v1' },
-  { label: 'Moonshot (Kimi)', url: 'https://api.moonshot.cn/v1' },
-  { label: '智谱 (GLM)', url: 'https://open.bigmodel.cn/api/paas/v4' },
-  { label: '阿里 (Qwen)', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-  { label: 'Cohere', url: 'https://api.cohere.com/v2' },
-  { label: 'Groq', url: 'https://api.groq.com/openai/v1' },
-  { label: 'Together AI', url: 'https://api.together.xyz/v1' },
-  { label: 'OpenRouter', url: 'https://openrouter.ai/api/v1' },
-  { label: 'Ollama (本地)', url: 'http://localhost:11434/v1' },
+  { label: 'OpenAI',           url: 'https://api.openai.com/v1',                                 icon: 'openai' },
+  { label: 'Anthropic (Claude)', url: 'https://api.anthropic.com/v1',                             icon: 'claude-color' },
+  { label: 'DeepSeek',         url: 'https://api.deepseek.com/v1',                               icon: 'deepseek-color' },
+  { label: 'Google (Gemini)',  url: 'https://generativelanguage.googleapis.com/v1beta/openai',   icon: 'gemini-color' },
+  { label: 'xAI (Grok)',       url: 'https://api.x.ai/v1',                                       icon: 'grok' },
+  { label: 'Meta (Llama)',     url: 'https://api.llama-api.com/v1',                              icon: 'meta-color' },
+  { label: 'Mistral AI',       url: 'https://api.mistral.ai/v1',                                 icon: 'mistral-color' },
+  { label: 'MiniMax',          url: 'https://api.minimaxi.com/v1',                               icon: 'minimax-color' },
+  { label: 'Moonshot (Kimi)',  url: 'https://api.moonshot.cn/v1',                                icon: 'kimi-color' },
+  { label: '智谱 (GLM)',       url: 'https://open.bigmodel.cn/api/paas/v4',                      icon: 'zhipu-color' },
+  { label: '阿里 (Qwen)',      url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',         icon: 'qwen-color' },
+  { label: 'Cohere',           url: 'https://api.cohere.com/v2',                                  icon: 'cohere-color' },
+  { label: 'Groq',             url: 'https://api.groq.com/openai/v1',                            icon: 'groq' },
+  { label: 'Together AI',      url: 'https://api.together.xyz/v1',                               icon: 'together-color' },
+  { label: 'OpenRouter',       url: 'https://openrouter.ai/api/v1',                              icon: 'openrouter' },
+  { label: 'Ollama (本地)',    url: 'http://localhost:11434/v1',                                  icon: 'ollama' },
 ];
+
+const selectedProvider = computed(() => providers.find(p => p.url === form.value.endpoint));
 
 const filteredEndpoints = computed(() => {
   const q = endpointQuery.value.toLowerCase();
@@ -575,6 +627,27 @@ watch(() => [form.value.endpoint, form.value.modelName, form.value.apiKey], () =
   color: var(--text);
 }
 
+.combo-clear {
+  background: none;
+  border: none;
+  padding: 0 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  color: var(--text-dim);
+  transition: color var(--t);
+  flex-shrink: 0;
+}
+
+.combo-clear:hover {
+  color: var(--text);
+}
+
+.text-input.has-two-right {
+  padding-right: 68px;
+}
+
 /* ===== Dropdown ===== */
 .dropdown {
   position: absolute;
@@ -606,6 +679,10 @@ watch(() => [form.value.endpoint, form.value.modelName, form.value.apiKey], () =
   transition: background var(--t);
 }
 
+.dropdown-item.has-logo {
+  grid-template-columns: 20px 1fr auto auto;
+}
+
 .dropdown-item:hover {
   background: var(--bg-surface);
 }
@@ -633,6 +710,21 @@ watch(() => [form.value.endpoint, form.value.modelName, form.value.apiKey], () =
 
 .item-check {
   flex-shrink: 0;
+}
+
+.item-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+.provider-logo {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .dropdown-loading {

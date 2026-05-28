@@ -4,11 +4,11 @@
   "description": "Vue 3 AI model configuration form component backed by a Node.js Express middleware. Supports adding, testing, and managing AI model providers.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xuze/ai-model-form.git"
+    "url": "git+https://github.com/xz333221/ai-model-form.git"
   },
-  "homepage": "https://github.com/xuze/ai-model-form#readme",
+  "homepage": "https://github.com/xz333221/ai-model-form#readme",
   "bugs": {
-    "url": "https://github.com/xuze/ai-model-form/issues"
+    "url": "https://github.com/xz333221/ai-model-form/issues"
   },
   "keywords": [
     "ai-model",

@@ -38,43 +38,42 @@ const PROVIDERS = [
 // ============================================================
 
 const BUILTIN_MODELS = {
+  // Updated: 2026-05-28
   'https://api.openai.com/v1': [
-    'gpt-5.5', 'gpt-5.5-turbo', 'gpt-5.5-xhigh', 'gpt-4.1', 'gpt-4o', 'gpt-4o-mini',
-    'o3', 'o4-mini', 'o3-mini', 'o1',
+    'gpt-5.5', 'gpt-5.5-instant', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
+    'gpt-4.1', 'gpt-4.1-mini', 'o3', 'o4-mini', 'gpt-4o',
   ],
   'https://api.anthropic.com/v1': [
-    'claude-opus-4-7-20250416', 'claude-sonnet-4-7-20250416', 'claude-sonnet-4-20250514',
-    'claude-opus-4-5', 'claude-sonnet-4-5', 'claude-haiku-3-5',
+    'claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5',
   ],
   'https://api.deepseek.com/v1': [
     'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner',
   ],
   'https://generativelanguage.googleapis.com/v1beta/openai': [
-    'gemini-3.1-pro', 'gemini-3.1-ultra', 'gemini-2.5-pro', 'gemini-2.5-flash',
-    'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+    'gemini-3.5-flash', 'gemini-3.5-pro', 'gemini-3.1-pro', 'gemini-3-flash',
+    'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
   ],
   'https://api.x.ai/v1': [
-    'grok-4.1', 'grok-4.20', 'grok-3', 'grok-3-mini',
+    'grok-4', 'grok-4.3', 'grok-3', 'grok-3-mini',
   ],
   'https://api.llama-api.com/v1': [
     'llama-4-maverick', 'llama-4-scout', 'llama-3.1-70b', 'llama-3.1-8b',
   ],
   'https://api.mistral.ai/v1': [
-    'mistral-medium-3', 'mistral-small-4', 'mistral-large-2',
-    'codestral-latest', 'open-mixtral-8x22b',
+    'mistral-medium-3.5', 'mistral-large-3', 'codestral-latest', 'open-mixtral-8x22b',
   ],
   'https://api.minimaxi.com/v1': [
-    'minimax-m2.7', 'minimax-m2.5', 'minimax-m1', 'abab7-chat',
+    'minimax-m2.7',
   ],
   'https://api.moonshot.cn/v1': [
-    'kimi-k2.6', 'kimi-k2', 'moonshot-v1-128k', 'moonshot-v1-32k', 'moonshot-v1-8k',
+    'kimi-k2.6', 'kimi-k2.5', 'moonshot-v1-128k', 'moonshot-v1-32k', 'moonshot-v1-8k',
   ],
   'https://open.bigmodel.cn/api/paas/v4': [
-    'glm-5.1', 'glm-4-plus', 'glm-4-air', 'glm-4-flash',
+    'glm-5.1', 'glm-5v-turbo', 'glm-4-plus', 'glm-4-flash',
   ],
   'https://dashscope.aliyuncs.com/compatible-mode/v1': [
-    'qwen3.6-max', 'qwen3.6-plus', 'qwen-plus', 'qwen-max',
-    'qwen3-235b-a22b', 'qwen3-32b', 'qwen3-14b', 'qwen3-8b',
+    'qwen3.7-max', 'qwen3.6-max-preview', 'qwen3.6-plus', 'qwen3.6-flash',
+    'qwen3.5-omni-plus', 'qwen3-vl-plus', 'qwen3-235b-a22b', 'qwen3-32b',
   ],
   'https://api.cohere.com/v2': [
     'command-r-plus-4', 'command-r-4', 'command-r', 'command-r-plus',

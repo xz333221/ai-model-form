@@ -9,6 +9,9 @@ dist/
 .env.local
 .env.*.local
 
+# npm auth token (do not commit)
+.npmrc
+
 # Editor
 .vscode/settings.json
 .idea/

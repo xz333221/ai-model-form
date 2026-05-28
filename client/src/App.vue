@@ -8,7 +8,10 @@
           <span class="logo-badge">Demo</span>
         </div>
         <nav class="header-nav">
-          <a href="https://github.com/xuze/ai-model-form" target="_blank" rel="noopener" class="nav-link">
+          <button type="button" class="theme-btn" :title="isDark ? '切换到亮色模式' : '切换到暗色模式'" @click="toggleTheme">
+            <SvgIcon :name="isDark ? 'sun' : 'moon'" :size="16" color="currentColor" />
+          </button>
+          <a href="https://github.com/xz333221/ai-model-form" target="_blank" rel="noopener" class="nav-link">
             <SvgIcon name="link" :size="14" color="currentColor" />
             GitHub
           </a>
@@ -32,6 +35,7 @@
         <div class="card-body">
           <AddModelForm
             api-base="/api/ai-model"
+            :theme="isDark ? 'dark' : 'light'"
             @save="onSave"
             @cancel="onCancel"
             @test-success="onTestSuccess"
@@ -70,10 +74,30 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import AddModelForm from './components/AddModelForm.vue';
 import SvgIcon from './icons/SvgIcon.vue';
 
+// ===== Theme =====
+const isDark = ref(true);
+
+function applyTheme(dark) {
+  isDark.value = dark;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  localStorage.setItem('ai-model-form-theme', dark ? 'dark' : 'light');
+}
+
+function toggleTheme() {
+  applyTheme(!isDark.value);
+}
+
+onMounted(() => {
+  const saved = localStorage.getItem('ai-model-form-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved ? saved === 'dark' : prefersDark);
+});
+
+// ===== Models =====
 const savedModels = ref([]);
 
 function onSave(model) {
@@ -114,6 +138,11 @@ function removeModel(id) {
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background var(--t), border-color var(--t);
+}
+
+:global([data-theme="light"]) .header {
+  background: rgba(248, 250, 252, .88);
 }
 
 .header-inner {
@@ -168,6 +197,25 @@ function removeModel(id) {
 }
 
 .nav-link:hover {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: color var(--t), background var(--t), border-color var(--t);
+}
+
+.theme-btn:hover {
   color: var(--text);
   background: var(--bg-elevated);
 }
