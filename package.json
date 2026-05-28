@@ -1,6 +1,6 @@
 {
   "name": "ai-model-form",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vue 3 AI model configuration form component backed by a Node.js Express middleware. Supports adding, testing, and managing AI model providers.",
   "repository": {
     "type": "git",

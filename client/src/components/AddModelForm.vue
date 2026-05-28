@@ -1,5 +1,5 @@
 <template>
-  <div class="form-wrap">
+  <div class="form-wrap" :style="themeVars">
     <!-- Field: API Endpoint -->
     <div class="field">
       <label class="field-label">
@@ -226,6 +226,53 @@ const props = defineProps({
   /** Current theme: 'dark' | 'light' */
   theme: { type: String, default: 'dark' },
 });
+
+// ===== Theme CSS variables =====
+const DARK_VARS = {
+  '--bg':           '#0F172A',
+  '--bg-surface':   '#1E293B',
+  '--bg-elevated':  '#293548',
+  '--border':       '#334155',
+  '--border-focus': '#3B82F6',
+  '--primary':      '#3B82F6',
+  '--primary-hover':'#2563EB',
+  '--primary-dim':  'rgba(59,130,246,.12)',
+  '--success':      '#10B981',
+  '--success-dim':  'rgba(16,185,129,.12)',
+  '--error':        '#EF4444',
+  '--error-dim':    'rgba(239,68,68,.12)',
+  '--warning':      '#F59E0B',
+  '--text':         '#E2E8F0',
+  '--text-dim':     '#94A3B8',
+  '--text-muted':   '#475569',
+  '--font':         "'Inter', system-ui, -apple-system, sans-serif",
+  '--radius':       '8px',
+  '--radius-lg':    '12px',
+  '--t':            '150ms ease',
+};
+const LIGHT_VARS = {
+  '--bg':           '#F8FAFC',
+  '--bg-surface':   '#FFFFFF',
+  '--bg-elevated':  '#F1F5F9',
+  '--border':       '#E2E8F0',
+  '--border-focus': '#2563EB',
+  '--primary':      '#2563EB',
+  '--primary-hover':'#1D4ED8',
+  '--primary-dim':  'rgba(37,99,235,.1)',
+  '--success':      '#059669',
+  '--success-dim':  'rgba(5,150,105,.1)',
+  '--error':        '#DC2626',
+  '--error-dim':    'rgba(220,38,38,.1)',
+  '--warning':      '#D97706',
+  '--text':         '#0F172A',
+  '--text-dim':     '#475569',
+  '--text-muted':   '#94A3B8',
+  '--font':         "'Inter', system-ui, -apple-system, sans-serif",
+  '--radius':       '8px',
+  '--radius-lg':    '12px',
+  '--t':            '150ms ease',
+};
+const themeVars = computed(() => props.theme === 'light' ? LIGHT_VARS : DARK_VARS);
 
 // ===== Provider logos =====
 const LOGO_CDN = 'https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png';
