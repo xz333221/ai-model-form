@@ -440,6 +440,21 @@ async function fetchModelsForEndpoint(endpoint) {
   }
 }
 
+// Sync form when `initial` prop changes (e.g. switching between edit targets)
+watch(() => props.initial, (val) => {
+  form.value = {
+    endpoint:    val?.endpoint    ?? '',
+    modelName:   val?.modelName   ?? '',
+    displayName: val?.displayName ?? '',
+    apiKey:      val?.apiKey      ?? '',
+  };
+  errors.value = { endpoint: '', modelName: '' };
+  testResult.value = null;
+  endpointQuery.value = '';
+  modelQuery.value = '';
+  fetchedModels.value = [];
+});
+
 // Re-fetch model list when API Key is filled in (enables live model list)
 watch(() => form.value.apiKey, (newKey, oldKey) => {
   const hadKey = oldKey && oldKey.trim().length > 0;
