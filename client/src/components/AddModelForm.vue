@@ -3,7 +3,7 @@
     <!-- Field: API Endpoint -->
     <div class="field">
       <label class="field-label">
-        接口地址
+        {{ t('endpoint') }}
         <span class="required">*</span>
       </label>
       <div class="combobox" :class="{ open: endpointOpen, error: errors.endpoint }">
@@ -14,7 +14,7 @@
             ref="endpointInputRef"
             v-model="form.endpoint"
             class="combo-input"
-            placeholder="选择或输入接口地址"
+            :placeholder="t('endpointPlaceholder')"
             autocomplete="off"
             @focus="endpointOpen = true"
             @blur="onEndpointBlur"
@@ -65,14 +65,14 @@
 
     <!-- Field: API Key -->
     <div class="field">
-      <label class="field-label">API Key</label>
+      <label class="field-label">{{ t('apiKey') }}</label>
       <div class="input-wrap">
         <SvgIcon name="key" :size="15" color="var(--text-dim)" class="field-icon" />
         <input
           v-model="form.apiKey"
           :type="showKey ? 'text' : 'password'"
           class="text-input has-two-right"
-          placeholder="输入 API Key"
+          :placeholder="t('apiKeyPlaceholder')"
           autocomplete="new-password"
           spellcheck="false"
         />
@@ -100,7 +100,7 @@
     <!-- Field: Model -->
     <div class="field">
       <label class="field-label">
-        模型
+        {{ t('model') }}
         <span class="required">*</span>
       </label>
       <div class="combobox" :class="{ open: modelOpen, error: errors.modelName }">
@@ -110,7 +110,7 @@
             ref="modelInputRef"
             v-model="form.modelName"
             class="combo-input"
-            placeholder="选择或输入模型"
+            :placeholder="t('modelPlaceholder')"
             autocomplete="off"
             @focus="onModelFocus"
             @blur="onModelBlur"
@@ -140,7 +140,7 @@
         <div v-if="modelOpen && filteredModels.length" class="dropdown">
           <div v-if="loadingModels" class="dropdown-loading">
             <SvgIcon name="loader" :size="14" color="var(--text-dim)" class="spin" />
-            <span>加载模型列表…</span>
+            <span>{{ t('loadingModels') }}</span>
           </div>
           <template v-else>
             <button
@@ -166,13 +166,13 @@
 
     <!-- Field: Display Name -->
     <div class="field">
-      <label class="field-label">显示名称</label>
+      <label class="field-label">{{ t('displayName') }}</label>
       <div class="input-wrap">
         <SvgIcon name="tag" :size="15" color="var(--text-dim)" class="field-icon" />
         <input
           v-model="form.displayName"
           class="text-input"
-          placeholder="默认使用模型名称"
+          :placeholder="t('displayNamePlaceholder')"
           autocomplete="off"
         />
         <button
@@ -197,17 +197,17 @@
 
     <!-- Actions -->
     <div class="actions">
-      <button type="button" class="btn btn-ghost" @click="emit('cancel')">取消</button>
+      <button type="button" class="btn btn-ghost" @click="emit('cancel')">{{ t('cancel') }}</button>
       <div class="actions-right">
         <button type="button" class="btn btn-outline" :disabled="testing" @click="handleTest">
           <SvgIcon v-if="testing" name="loader" :size="14" color="currentColor" class="spin" />
           <SvgIcon v-else name="zap" :size="14" color="currentColor" />
-          {{ testing ? '测试中…' : '测试' }}
+          {{ testing ? t('testing') : t('test') }}
         </button>
         <button type="button" class="btn btn-primary" :disabled="saving" @click="handleSave">
           <SvgIcon v-if="saving" name="loader" :size="14" color="currentColor" class="spin" />
           <SvgIcon v-else name="check" :size="14" color="currentColor" />
-          {{ saving ? '保存中…' : '保存模型' }}
+          {{ saving ? t('saving') : t('save') }}
         </button>
       </div>
     </div>
@@ -217,6 +217,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import SvgIcon from '../icons/SvgIcon.vue';
+import { useI18n, resolveLocale, SUPPORTED_LOCALES, DEFAULT_LOCALE } from '../i18n/useI18n.js';
 
 const props = defineProps({
   /** Base URL for the API middleware, e.g. '/api/ai-model' */
@@ -225,7 +226,19 @@ const props = defineProps({
   initial: { type: Object, default: null },
   /** Current theme: 'dark' | 'light' */
   theme: { type: String, default: 'dark' },
+  /**
+   * UI language: 'zh-CN' | 'en-US'.
+   * Falls back to 'zh-CN' for unsupported values.
+   */
+  locale: {
+    type: String,
+    default: DEFAULT_LOCALE,
+    validator: (v) => SUPPORTED_LOCALES.includes(v) || v == null || v === '',
+  },
 });
+
+const localeRef = computed(() => resolveLocale(props.locale));
+const { t } = useI18n(localeRef);
 
 // ===== Theme CSS variables =====
 const DARK_VARS = {
@@ -315,30 +328,35 @@ const fetchedModels = ref([]);
 // ===== Static provider list =====
 
 const providers = [
-  { label: 'OpenAI',           url: 'https://api.openai.com/v1',                                 icon: 'openai' },
-  { label: 'Anthropic (Claude)', url: 'https://api.anthropic.com/v1',                             icon: 'claude-color' },
-  { label: 'DeepSeek',         url: 'https://api.deepseek.com/v1',                               icon: 'deepseek-color' },
-  { label: 'Google (Gemini)',  url: 'https://generativelanguage.googleapis.com/v1beta/openai',   icon: 'gemini-color' },
-  { label: 'xAI (Grok)',       url: 'https://api.x.ai/v1',                                       icon: 'grok' },
-  { label: 'Meta (Llama)',     url: 'https://api.llama-api.com/v1',                              icon: 'meta-color' },
-  { label: 'Mistral AI',       url: 'https://api.mistral.ai/v1',                                 icon: 'mistral-color' },
-  { label: 'MiniMax',          url: 'https://api.minimaxi.com/v1',                               icon: 'minimax-color' },
-  { label: 'Moonshot (Kimi)',  url: 'https://api.moonshot.cn/v1',                                icon: 'kimi-color' },
-  { label: '智谱 (GLM)',       url: 'https://open.bigmodel.cn/api/paas/v4',                      icon: 'zhipu-color' },
-  { label: '阿里 (Qwen)',      url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',         icon: 'qwen-color' },
-  { label: 'Cohere',           url: 'https://api.cohere.com/v2',                                  icon: 'cohere-color' },
-  { label: 'Groq',             url: 'https://api.groq.com/openai/v1',                            icon: 'groq' },
-  { label: 'Together AI',      url: 'https://api.together.xyz/v1',                               icon: 'together-color' },
-  { label: 'OpenRouter',       url: 'https://openrouter.ai/api/v1',                              icon: 'openrouter' },
-  { label: 'Ollama (本地)',    url: 'http://localhost:11434/v1',                                  icon: 'ollama' },
+  { id: 'openai',     url: 'https://api.openai.com/v1',                                 icon: 'openai' },
+  { id: 'anthropic',  url: 'https://api.anthropic.com/v1',                             icon: 'claude-color' },
+  { id: 'deepseek',   url: 'https://api.deepseek.com/v1',                               icon: 'deepseek-color' },
+  { id: 'gemini',     url: 'https://generativelanguage.googleapis.com/v1beta/openai',   icon: 'gemini-color' },
+  { id: 'xai',        url: 'https://api.x.ai/v1',                                       icon: 'grok' },
+  { id: 'meta',       url: 'https://api.llama-api.com/v1',                              icon: 'meta-color' },
+  { id: 'mistral',    url: 'https://api.mistral.ai/v1',                                 icon: 'mistral-color' },
+  { id: 'minimax',    url: 'https://api.minimaxi.com/v1',                               icon: 'minimax-color' },
+  { id: 'moonshot',   url: 'https://api.moonshot.cn/v1',                                icon: 'kimi-color' },
+  { id: 'zhipu',      url: 'https://open.bigmodel.cn/api/paas/v4',                      icon: 'zhipu-color' },
+  { id: 'qwen',       url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',         icon: 'qwen-color' },
+  { id: 'cohere',     url: 'https://api.cohere.com/v2',                                  icon: 'cohere-color' },
+  { id: 'groq',       url: 'https://api.groq.com/openai/v1',                            icon: 'groq' },
+  { id: 'together',   url: 'https://api.together.xyz/v1',                               icon: 'together-color' },
+  { id: 'openrouter', url: 'https://openrouter.ai/api/v1',                              icon: 'openrouter' },
+  { id: 'ollama',     url: 'http://localhost:11434/v1',                                  icon: 'ollama' },
 ];
 
-const selectedProvider = computed(() => providers.find(p => p.url === form.value.endpoint));
+const localizedProviders = computed(() =>
+  providers.map(p => ({ ...p, label: t(`provider.${p.id}`) }))
+);
+
+const selectedProvider = computed(() => localizedProviders.value.find(p => p.url === form.value.endpoint));
 
 const filteredEndpoints = computed(() => {
+  const list = localizedProviders.value;
   const q = endpointQuery.value.toLowerCase();
-  if (!q) return providers;
-  return providers.filter(p =>
+  if (!q) return list;
+  return list.filter(p =>
     p.label.toLowerCase().includes(q) || p.url.toLowerCase().includes(q)
   );
 });
@@ -471,11 +489,11 @@ function validate() {
   errors.value = { endpoint: '', modelName: '' };
   let ok = true;
   if (!form.value.endpoint.trim()) {
-    errors.value.endpoint = '请填写接口地址';
+    errors.value.endpoint = t('errEndpointRequired');
     ok = false;
   }
   if (!form.value.modelName.trim()) {
-    errors.value.modelName = '请填写模型';
+    errors.value.modelName = t('errModelRequired');
     ok = false;
   }
   return ok;
@@ -499,14 +517,14 @@ async function handleTest() {
     });
     const data = await res.json();
     if (res.ok && data.ok) {
-      testResult.value = { ok: true, message: data.message || '连接成功' };
+      testResult.value = { ok: true, message: data.message || t('okDefault') };
       emit('test-success', data);
     } else {
-      testResult.value = { ok: false, message: data.message || '连接失败' };
+      testResult.value = { ok: false, message: data.message || t('failDefault') };
       emit('test-fail', data);
     }
   } catch (e) {
-    testResult.value = { ok: false, message: `网络错误: ${e.message}` };
+    testResult.value = { ok: false, message: `${t('networkError')}: ${e.message}` };
     emit('test-fail', { message: e.message });
   } finally {
     testing.value = false;
@@ -532,10 +550,10 @@ async function handleSave() {
     if (res.ok) {
       emit('save', { ...payload, id: data.id });
     } else {
-      testResult.value = { ok: false, message: data.message || '保存失败' };
+      testResult.value = { ok: false, message: data.message || t('saveFailDefault') };
     }
   } catch (e) {
-    testResult.value = { ok: false, message: `网络错误: ${e.message}` };
+    testResult.value = { ok: false, message: `${t('networkError')}: ${e.message}` };
   } finally {
     saving.value = false;
   }

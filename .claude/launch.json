@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "demo",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "npm", "run", "dev", "--prefix", "D:/xz_workspace/github_workspace/ai-model-form/demo"],
+      "port": 7432
+    }
+  ]
+}
