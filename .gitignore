@@ -40,3 +40,6 @@ coverage/
 # Temp files
 *.tmp
 *.temp
+
+# Claude Code transient diff output (do not track)
+.claude/codediff.txt
