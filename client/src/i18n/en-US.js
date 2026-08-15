@@ -29,7 +29,7 @@ export default {
   // Actions
   cancel: 'Cancel',
 
-  // Providers — 16 built-in
+  // Providers — 17 built-in
   provider: {
     openai: 'OpenAI',
     anthropic: 'Anthropic (Claude)',
@@ -47,5 +47,6 @@ export default {
     together: 'Together AI',
     openrouter: 'OpenRouter',
     ollama: 'Ollama (local)',
+    agnes: 'Agnes AI',
   },
 };

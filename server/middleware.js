@@ -29,6 +29,7 @@ const PROVIDERS = [
   { id: 'groq',       label: 'Groq',                  url: 'https://api.groq.com/openai/v1' },
   { id: 'together',   label: 'Together AI',           url: 'https://api.together.xyz/v1' },
   { id: 'openrouter', label: 'OpenRouter',            url: 'https://openrouter.ai/api/v1' },
+  { id: 'agnes',      label: 'Agnes AI',               url: 'https://apihub.agnes-ai.com/v1' },
   { id: 'ollama',     label: 'Ollama (本地)',          url: 'http://localhost:11434/v1' },
 ];
 
@@ -86,6 +87,9 @@ const BUILTIN_MODELS = {
     'meta-llama/Llama-4-Maverick', 'Qwen/Qwen3-72B',
     'meta-llama/Llama-3.3-70B-Instruct-Turbo',
     'deepseek-ai/DeepSeek-V3',
+  ],
+  'https://apihub.agnes-ai.com/v1': [
+    'agnes-2.5-pro-alpha', 'agnes-2.0-flash', 'agnes-image-2.0', 'agnes-video-v2.0',
   ],
   'http://localhost:11434/v1': [
     'qwen2.5', 'llama3.1', 'mistral', 'deepseek-r1:7b', 'qwen3', 'llama4',
