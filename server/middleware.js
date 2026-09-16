@@ -20,6 +20,7 @@ const PROVIDERS = [
   { id: 'gemini',     label: 'Google (Gemini)',        url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
   { id: 'xai',        label: 'xAI (Grok)',            url: 'https://api.x.ai/v1' },
   { id: 'meta',       label: 'Meta (Llama)',          url: 'https://api.llama-api.com/v1' },
+  { id: 'nvidia',     label: 'NVIDIA',                url: 'https://integrate.api.nvidia.com/v1' },
   { id: 'mistral',    label: 'Mistral AI',            url: 'https://api.mistral.ai/v1' },
   { id: 'minimax',    label: 'MiniMax',               url: 'https://api.minimaxi.com/v1' },
   { id: 'moonshot',   label: 'Moonshot (Kimi)',       url: 'https://api.moonshot.cn/v1' },
@@ -93,6 +94,16 @@ const BUILTIN_MODELS = {
   ],
   'http://localhost:11434/v1': [
     'qwen2.5', 'llama3.1', 'mistral', 'deepseek-r1:7b', 'qwen3', 'llama4',
+  ],
+  'https://integrate.api.nvidia.com/v1': [
+    'nvidia/llama-3.3-nemotron-super-49b-v1',
+    'nvidia/nemotron-3-nano-30b-a3b',
+    'nvidia/nemotron-3-super-120b-a12b',
+    'nvidia/llama-3.1-nemotron-ultra-253b-v1',
+    'meta/llama-3.3-70b-instruct',
+    'meta/llama-4-maverick-17b-128e-instruct',
+    'deepseek-ai/deepseek-r1',
+    'qwen/qwq-32b',
   ],
 };
 
@@ -179,7 +190,7 @@ let nextId = 1;
 // ============================================================
 
 export function createAiModelMiddleware(options = {}) {
-  const { testTimeoutMs = 8000 } = options;
+  const { testTimeoutMs = 30000 } = options;
   const router = Router();
 
   router.get('/ai-model/providers', (_req, res) => {
@@ -266,6 +277,8 @@ export function createAiModelMiddleware(options = {}) {
         return res.json({ ok: false, message: 'API Key 无效或未授权 (401)' });
       if (fetchRes.status === 404)
         return res.json({ ok: false, message: `模型 "${modelName}" 不存在 (404)` });
+      if (fetchRes.status === 410 && endpoint.includes('nvidia.com'))
+        return res.json({ ok: false, message: 'NVIDIA 账号缺少 Public API Endpoints 权限 (410)，请在 build.nvidia.com 申请开通后再试' });
       return res.json({ ok: false, message: `服务器返回错误: ${fetchRes.status}` });
     } catch (err) {
       if (err.name === 'AbortError')

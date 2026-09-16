@@ -338,6 +338,7 @@ const providers = [
   { id: 'gemini',     url: 'https://generativelanguage.googleapis.com/v1beta/openai',   icon: 'gemini-color' },
   { id: 'xai',        url: 'https://api.x.ai/v1',                                       icon: 'grok' },
   { id: 'meta',       url: 'https://api.llama-api.com/v1',                              icon: 'meta-color' },
+  { id: 'nvidia',     url: 'https://integrate.api.nvidia.com/v1',                       icon: 'nvidia-color' },
   { id: 'mistral',    url: 'https://api.mistral.ai/v1',                                 icon: 'mistral-color' },
   { id: 'minimax',    url: 'https://api.minimaxi.com/v1',                               icon: 'minimax-color' },
   { id: 'moonshot',   url: 'https://api.moonshot.cn/v1',                                icon: 'kimi-color' },

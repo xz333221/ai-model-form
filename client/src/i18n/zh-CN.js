@@ -29,7 +29,7 @@ export default {
   // Actions
   cancel: '取消',
 
-  // Providers — 17 built-in
+  // Providers — 18 built-in
   provider: {
     openai: 'OpenAI',
     anthropic: 'Anthropic (Claude)',
@@ -37,6 +37,7 @@ export default {
     gemini: 'Google (Gemini)',
     xai: 'xAI (Grok)',
     meta: 'Meta (Llama)',
+    nvidia: '英伟达',
     mistral: 'Mistral AI',
     minimax: 'MiniMax',
     moonshot: 'Moonshot (Kimi)',
