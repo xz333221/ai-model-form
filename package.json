@@ -40,6 +40,7 @@
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
     "build": "vite build --config vite.lib.config.js",
+    "release": "node ./scripts/release.js",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
