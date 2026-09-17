@@ -8,6 +8,7 @@
  *   4. Built-in    — curated list bundled in the package, always available
  */
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 
 // ============================================================
 // Provider presets
@@ -30,9 +31,79 @@ const PROVIDERS = [
   { id: 'groq',       label: 'Groq',                  url: 'https://api.groq.com/openai/v1' },
   { id: 'together',   label: 'Together AI',           url: 'https://api.together.xyz/v1' },
   { id: 'openrouter', label: 'OpenRouter',            url: 'https://openrouter.ai/api/v1' },
+  { id: 'opencode',   label: 'OpenCode Go',           url: 'https://opencode.ai/zen/go/v1' },
   { id: 'agnes',      label: 'Agnes AI',               url: 'https://apihub.agnes-ai.com/v1' },
   { id: 'ollama',     label: 'Ollama (本地)',          url: 'http://localhost:11434/v1' },
 ];
+
+// ============================================================
+// OpenCode Go — https://opencode.ai/docs/go
+// $10/月订阅网关（国际），API Key 从 https://opencode.ai/auth 获取。
+//
+// 同一个 base URL 下混了三套协议，模型属于哪一族决定了路径、
+// 鉴权头和请求体形状：
+//   chat      → OpenAI 兼容   POST /chat/completions  (Authorization: Bearer)
+//   messages  → Anthropic 兼容 POST /messages          (x-api-key)
+//   responses → OpenAI 新协议  POST /responses
+// ============================================================
+
+const OPENCODE_GO_URL = 'https://opencode.ai/zen/go/v1';
+
+const OPENCODE_GO_MODELS = {
+  // 大多数模型走 OpenAI 兼容
+  chat: [
+    'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash',
+    'deepseek-v4-flash-vision-exp', 'deepseek-flash',
+    'glm-5.3', 'glm-5.3-flash', 'glm-5.2', 'glm-5.1', 'glm-5',
+    'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'kimi-k2.5',
+    'longcat-2.0',
+    'mimo-v2.5', 'mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2-omni',
+    'hy4-preview', 'hy3', 'hy3-preview',
+    'omen-alpha',
+  ],
+  // Anthropic 兼容 —— 注意鉴权走 x-api-key，不是 Bearer
+  messages: [
+    'minimax-m3', 'minimax-m2.7', 'minimax-m2.5',
+    'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-max', 'qwen3.7-plus',
+    'qwen3.6-plus', 'qwen3.5-plus',
+    'union-alpha',
+  ],
+  // OpenAI Responses API
+  responses: [
+    'grok-4.6', 'grok-4.5', 'gpt-5.6-luna',
+    'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor',
+  ],
+};
+
+// modelId -> 协议族，用于给连通性测试选对路径
+const OPENCODE_GO_ROUTE = Object.fromEntries(
+  Object.entries(OPENCODE_GO_MODELS).flatMap(([family, ids]) => ids.map(id => [id, family]))
+);
+
+// 下拉框里的副标题，提示该模型不是 OpenAI 协议
+const OPENCODE_GO_DESC = {
+  messages: '/messages · Anthropic 协议',
+  responses: '/responses · OpenAI 新协议',
+};
+
+/**
+ * Go 要求客户端表明身份并在 x-opencode-session 里带上稳定的会话 ID，
+ * 否则请求可能被限流。见 opencode.ai/docs/go「可以在哪里使用？」。
+ */
+function openCodeGoHeaders(apiKey, family) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': 'ai-model-form/0.3.0',
+    'x-opencode-session': randomUUID(),
+  };
+  if (family === 'messages') {
+    headers['x-api-key'] = apiKey || '';
+    headers['anthropic-version'] = '2023-06-01';
+  } else {
+    headers['Authorization'] = apiKey ? `Bearer ${apiKey}` : '';
+  }
+  return headers;
+}
 
 // ============================================================
 // Built-in curated model list (no API Key needed)
@@ -105,6 +176,13 @@ const BUILTIN_MODELS = {
     'deepseek-ai/deepseek-r1',
     'qwen/qwq-32b',
   ],
+  // OpenCode Go — 更新: 2026-09-17（来自 /models 实时列表 + 官方文档的协议归属）
+  // 只有非 OpenAI 协议的模型带 desc，用来在下拉框里做提示
+  'https://opencode.ai/zen/go/v1': [
+    ...OPENCODE_GO_MODELS.chat,
+    ...OPENCODE_GO_MODELS.responses.map(id => ({ id, desc: OPENCODE_GO_DESC.responses })),
+    ...OPENCODE_GO_MODELS.messages.map(id => ({ id, desc: OPENCODE_GO_DESC.messages })),
+  ],
 };
 
 // ============================================================
@@ -151,6 +229,39 @@ async function fetchOllamaModels(baseUrl, timeoutMs) {
     return (data.models || []).map(m => ({ id: m.name, desc: m.details?.parameter_size || '' }));
   } catch {
     return [];
+  }
+}
+
+// ============================================================
+// OpenCode Go — public /models, no auth, cached 1h
+// ============================================================
+
+let _openCodeGoCache = null;
+let _openCodeGoFetchedAt = 0;
+
+async function fetchOpenCodeGoModels(timeoutMs) {
+  const now = Date.now();
+  if (_openCodeGoCache && now - _openCodeGoFetchedAt < 3_600_000) return _openCodeGoCache;
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), timeoutMs);
+    const res = await fetch(`${OPENCODE_GO_URL}/models`, {
+      headers: openCodeGoHeaders(),
+      signal: ac.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _openCodeGoCache = (data.data || data.models || [])
+      .map(m => (typeof m === 'string' ? m : m.id))
+      .filter(Boolean)
+      .map(id => ({ id, desc: OPENCODE_GO_DESC[OPENCODE_GO_ROUTE[id]] || '' }));
+    _openCodeGoFetchedAt = Date.now();
+    console.log(`[ai-model-form] OpenCode Go: ${_openCodeGoCache.length} models`);
+    return _openCodeGoCache;
+  } catch (err) {
+    console.warn(`[ai-model-form] OpenCode Go fetch failed: ${err.message}`);
+    return _openCodeGoCache || null;
   }
 }
 
@@ -224,7 +335,17 @@ export function createAiModelMiddleware(options = {}) {
       return res.json({ models, source: models.length ? 'live' : 'empty' });
     }
 
-    const builtin = (BUILTIN_MODELS[ep] || []).map(id => ({ id, desc: '' }));
+    const builtin = (BUILTIN_MODELS[ep] || []).map(m =>
+      typeof m === 'string' ? { id: m, desc: '' } : { id: m.id, desc: m.desc || '' }
+    );
+
+    // OpenCode Go: public /models, no auth required, real-time
+    // (annotated with each model's protocol family from the local table)
+    if (ep === OPENCODE_GO_URL) {
+      const live = await fetchOpenCodeGoModels(testTimeoutMs);
+      if (live && live.length) return res.json({ models: live, source: 'live' });
+      return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
+    }
 
     // Live fetch when API Key is provided
     if (apiKey) {
@@ -253,21 +374,43 @@ export function createAiModelMiddleware(options = {}) {
     if (!['http:', 'https:'].includes(parsedUrl.protocol))
       return res.status(400).json({ ok: false, message: '接口地址只支持 http/https' });
 
+    const ep = endpoint.replace(/\/$/, '');
+
+    // OpenCode Go exposes three protocol families behind one base URL —
+    // pick the path / auth / body that matches the selected model.
+    const family = ep === OPENCODE_GO_URL ? OPENCODE_GO_ROUTE[modelName.trim()] : null;
+
     try {
       const ac = new AbortController();
       const timer = setTimeout(() => ac.abort(), testTimeoutMs);
-      const fetchRes = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: {
+
+      let url, headers, payload;
+      if (family) {
+        url = `${ep}/${family === 'chat' ? 'chat/completions' : family}`;
+        headers = openCodeGoHeaders(apiKey, family);
+        payload = family === 'messages'
+          ? { model: modelName, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }
+          : family === 'responses'
+            ? { model: modelName, input: 'hi', max_output_tokens: 16 }
+            : { model: modelName, messages: [{ role: 'user', content: 'hi' }], max_tokens: 1, stream: false };
+      } else {
+        url = `${ep}/chat/completions`;
+        headers = {
           'Authorization': apiKey ? `Bearer ${apiKey}` : '',
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        };
+        payload = {
           model: modelName,
           messages: [{ role: 'user', content: 'hi' }],
           max_tokens: 1,
           stream: false,
-        }),
+        };
+      }
+
+      const fetchRes = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
         signal: ac.signal,
       });
       clearTimeout(timer);

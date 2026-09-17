@@ -29,7 +29,7 @@ export default {
   // Actions
   cancel: '取消',
 
-  // Providers — 18 built-in
+  // Providers — 19 built-in
   provider: {
     openai: 'OpenAI',
     anthropic: 'Anthropic (Claude)',
@@ -47,6 +47,7 @@ export default {
     groq: 'Groq',
     together: 'Together AI',
     openrouter: 'OpenRouter',
+    opencode: 'OpenCode Go (订阅)',
     ollama: 'Ollama (本地)',
     agnes: 'Agnes AI',
   },

@@ -348,6 +348,7 @@ const providers = [
   { id: 'groq',       url: 'https://api.groq.com/openai/v1',                            icon: 'groq' },
   { id: 'together',   url: 'https://api.together.xyz/v1',                               icon: 'together-color' },
   { id: 'openrouter', url: 'https://openrouter.ai/api/v1',                              icon: 'openrouter' },
+  { id: 'opencode',   url: 'https://opencode.ai/zen/go/v1',                             icon: 'opencode' },
   { id: 'agnes',      url: 'https://apihub.agnes-ai.com/v1',                            icon: 'agnes' },
   { id: 'ollama',     url: 'http://localhost:11434/v1',                                  icon: 'ollama' },
 ];
