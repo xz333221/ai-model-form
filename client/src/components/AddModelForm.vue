@@ -349,6 +349,7 @@ const providers = [
   { id: 'together',   url: 'https://api.together.xyz/v1',                               icon: 'together-color' },
   { id: 'openrouter', url: 'https://openrouter.ai/api/v1',                              icon: 'openrouter' },
   { id: 'opencode',   url: 'https://opencode.ai/zen/go/v1',                             icon: 'opencode' },
+  { id: 'commandcode', url: 'https://api.commandcode.ai/provider/v1',                    icon: 'commandcode' },
   { id: 'agnes',      url: 'https://apihub.agnes-ai.com/v1',                            icon: 'agnes' },
   { id: 'ollama',     url: 'http://localhost:11434/v1',                                  icon: 'ollama' },
 ];

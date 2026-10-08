@@ -32,6 +32,7 @@ const PROVIDERS = [
   { id: 'together',   label: 'Together AI',           url: 'https://api.together.xyz/v1' },
   { id: 'openrouter', label: 'OpenRouter',            url: 'https://openrouter.ai/api/v1' },
   { id: 'opencode',   label: 'OpenCode Go',           url: 'https://opencode.ai/zen/go/v1' },
+  { id: 'commandcode', label: 'Command Code',          url: 'https://api.commandcode.ai/provider/v1' },
   { id: 'agnes',      label: 'Agnes AI',               url: 'https://apihub.agnes-ai.com/v1' },
   { id: 'ollama',     label: 'Ollama (本地)',          url: 'http://localhost:11434/v1' },
 ];
@@ -103,6 +104,68 @@ function openCodeGoHeaders(apiKey, family) {
     headers['Authorization'] = apiKey ? `Bearer ${apiKey}` : '';
   }
   return headers;
+}
+
+// ============================================================
+// Command Code — https://commandcode.ai/docs/provider
+// 订阅制编码 agent 的官方 Provider API。同一个 base URL 下混两套协议：
+//   claude-*  → Anthropic 兼容  POST /messages          （Claude 只有这一条路）
+//   其它模型   → OpenAI 兼容     POST /chat/completions
+// /models 免鉴权，且每个模型带 supported_endpoints 字段标明可用路由。
+// 鉴权：Authorization: Bearer <API Key> 对所有路由都有效（Anthropic SDK 也可用 x-api-key）。
+// 注意：Go 套餐不含 API 访问权限（403 upgrade_required），需 GOAT / Pro / Max / Provider 套餐。
+// ============================================================
+
+const COMMAND_CODE_URL = 'https://api.commandcode.ai/provider/v1';
+
+// 内置兜底列表（实时 /models 拿不到时用），Claude 系在下拉框里带协议提示
+const COMMAND_CODE_MODELS = [
+  'claude-sonnet-5-5', 'claude-sonnet-5', 'claude-sonnet-4-6',
+  'claude-opus-5-5', 'claude-opus-5', 'claude-opus-4-8',
+  'claude-haiku-5-5', 'claude-haiku-4-5-20251001',
+  'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4',
+  'deepseek/deepseek-v4-pro', 'deepseek/deepseek-v4-flash', 'deepseek/deepseek-v4.1-flash',
+  'moonshotai/Kimi-K3', 'moonshotai/Kimi-K2.7-Code', 'moonshotai/Kimi-K2.6',
+  'zai-org/GLM-5.3', 'zai-org/GLM-5.2', 'z-ai/glm-5.3-flash',
+  'MiniMaxAI/MiniMax-M3', 'MiniMaxAI/MiniMax-M2.7',
+  'xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.5',
+  'Qwen/Qwen3.8-Max', 'Qwen/Qwen3.8-Flash', 'Qwen/Qwen3.7-Max',
+  'google/gemini-3.8-flash', 'google/gemini-3.5-flash',
+  'xai/grok-4.7', 'xai/grok-4.6',
+  'meta/muse-spark-1.3', 'tencent/hy3-paid', 'mistral/mistral-large-4',
+  'nvidia/nemotron-3-ultra-550b-a55b',
+  'inclusionai/ling-3.1-flash:free', 'poolside/laguna-s-2.1-free',
+];
+
+const COMMAND_CODE_ANTHROPIC_DESC = '/messages · Anthropic 协议';
+
+/** Command Code 按模型名选路由：claude-* 只能走 /messages，其余走 /chat/completions */
+function commandCodeFamily(modelName) {
+  return /^claude-/i.test((modelName || '').trim()) ? 'messages' : 'chat';
+}
+
+function commandCodeHeaders(apiKey) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent': 'ai-model-form/0.3.1',
+  };
+  // /models 免鉴权，此时不要发空的 Authorization 头
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+  return headers;
+}
+
+/** 读取错误响应里的错误码和可读信息（只用于把上游原因透给用户，读失败就算了） */
+async function readErrorBody(response) {
+  try {
+    const body = await response.json();
+    const err = body?.error || body || {};
+    return {
+      code: typeof err.code === 'string' ? err.code : '',
+      message: typeof err.message === 'string' ? err.message : '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ============================================================
@@ -183,6 +246,10 @@ const BUILTIN_MODELS = {
     ...OPENCODE_GO_MODELS.responses.map(id => ({ id, desc: OPENCODE_GO_DESC.responses })),
     ...OPENCODE_GO_MODELS.messages.map(id => ({ id, desc: OPENCODE_GO_DESC.messages })),
   ],
+  // Command Code — 更新: 2026-10-08（官方 Provider API，Claude 系走 /messages）
+  'https://api.commandcode.ai/provider/v1': COMMAND_CODE_MODELS.map(id =>
+    commandCodeFamily(id) === 'messages' ? { id, desc: COMMAND_CODE_ANTHROPIC_DESC } : id
+  ),
 };
 
 // ============================================================
@@ -262,6 +329,44 @@ async function fetchOpenCodeGoModels(timeoutMs) {
   } catch (err) {
     console.warn(`[ai-model-form] OpenCode Go fetch failed: ${err.message}`);
     return _openCodeGoCache || null;
+  }
+}
+
+// ============================================================
+// Command Code — public /models, no auth, cached 1h
+// ============================================================
+
+let _commandCodeCache = null;
+let _commandCodeFetchedAt = 0;
+
+async function fetchCommandCodeModels(timeoutMs) {
+  const now = Date.now();
+  if (_commandCodeCache && now - _commandCodeFetchedAt < 3_600_000) return _commandCodeCache;
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), timeoutMs);
+    const res = await fetch(`${COMMAND_CODE_URL}/models`, {
+      headers: commandCodeHeaders(),
+      signal: ac.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _commandCodeCache = (data.data || data.models || [])
+      .map(m => (typeof m === 'string' ? { id: m } : m))
+      .filter(m => m && m.id)
+      .map(m => {
+        // supported_endpoints 里没有 /chat/completions 的就是 Claude 系，只能走 /messages
+        const eps = Array.isArray(m.supported_endpoints) ? m.supported_endpoints : [];
+        const anthropicOnly = eps.length > 0 && !eps.includes('/chat/completions');
+        return { id: m.id, desc: anthropicOnly ? COMMAND_CODE_ANTHROPIC_DESC : '' };
+      });
+    _commandCodeFetchedAt = Date.now();
+    console.log(`[ai-model-form] Command Code: ${_commandCodeCache.length} models`);
+    return _commandCodeCache;
+  } catch (err) {
+    console.warn(`[ai-model-form] Command Code fetch failed: ${err.message}`);
+    return _commandCodeCache || null;
   }
 }
 
@@ -347,6 +452,13 @@ export function createAiModelMiddleware(options = {}) {
       return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
     }
 
+    // Command Code: public /models (no auth), Claude 系带协议提示
+    if (ep === COMMAND_CODE_URL) {
+      const live = await fetchCommandCodeModels(testTimeoutMs);
+      if (live && live.length) return res.json({ models: live, source: 'live' });
+      return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
+    }
+
     // Live fetch when API Key is provided
     if (apiKey) {
       const live = await fetchLiveModels(ep, apiKey, testTimeoutMs);
@@ -376,9 +488,13 @@ export function createAiModelMiddleware(options = {}) {
 
     const ep = endpoint.replace(/\/$/, '');
 
-    // OpenCode Go exposes three protocol families behind one base URL —
-    // pick the path / auth / body that matches the selected model.
-    const family = ep === OPENCODE_GO_URL ? OPENCODE_GO_ROUTE[modelName.trim()] : null;
+    // OpenCode Go exposes three protocol families behind one base URL — pick the
+    // path / auth / body that matches the selected model. Command Code does the
+    // same with two families: claude-* on /messages, everything else on /chat/completions.
+    const isCommandCode = ep === COMMAND_CODE_URL;
+    const family = ep === OPENCODE_GO_URL ? OPENCODE_GO_ROUTE[modelName.trim()]
+      : isCommandCode ? commandCodeFamily(modelName)
+      : null;
 
     try {
       const ac = new AbortController();
@@ -387,7 +503,7 @@ export function createAiModelMiddleware(options = {}) {
       let url, headers, payload;
       if (family) {
         url = `${ep}/${family === 'chat' ? 'chat/completions' : family}`;
-        headers = openCodeGoHeaders(apiKey, family);
+        headers = isCommandCode ? commandCodeHeaders(apiKey) : openCodeGoHeaders(apiKey, family);
         payload = family === 'messages'
           ? { model: modelName, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }
           : family === 'responses'
@@ -414,10 +530,26 @@ export function createAiModelMiddleware(options = {}) {
         signal: ac.signal,
       });
       clearTimeout(timer);
-      if (fetchRes.ok || fetchRes.status === 400)
+      if (fetchRes.ok)
         return res.json({ ok: true, message: '连接成功', status: fetchRes.status });
+      // 400 有两种含义，必须看错误码区分：
+      //   「探活参数被拒」(如 o 系/Gemini 嫌 max_tokens 太小) → 模型和 Key 都是好的，算成功
+      //   「模型不可用」(模型名不存在 / 走错了协议族)     → 必须报失败，否则打错模型名也会显示连接成功
+      if (fetchRes.status === 400) {
+        const err = await readErrorBody(fetchRes);
+        const blob = `${err?.code || ''} ${err?.message || ''}`;
+        if (/unsupported_model|must be called via|is not supported on this endpoint/i.test(blob))
+          return res.json({ ok: false, message: `模型 "${modelName}" 在该接口不可用 (400)${err?.message ? '：' + err.message : ''}` });
+        return res.json({ ok: true, message: '连接成功', status: 400 });
+      }
       if (fetchRes.status === 401)
         return res.json({ ok: false, message: 'API Key 无效或未授权 (401)' });
+      if (fetchRes.status === 403) {
+        const hint = (await readErrorBody(fetchRes))?.message || '';
+        if (/doesn't include API access/i.test(hint))
+          return res.json({ ok: false, message: '当前套餐不含 API 访问权限：Command Code 的 Go 套餐需升级到 GOAT / Pro / Max / Provider 才能调用 API' });
+        return res.json({ ok: false, message: `无访问权限 (403)${hint ? '：' + hint : ''}` });
+      }
       if (fetchRes.status === 404)
         return res.json({ ok: false, message: `模型 "${modelName}" 不存在 (404)` });
       if (fetchRes.status === 410 && endpoint.includes('nvidia.com'))
