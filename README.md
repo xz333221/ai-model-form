@@ -14,6 +14,18 @@ Supports adding, testing, and managing AI model providers (OpenAI-compatible).
 - Test API connection before saving
 - Packaged as an npm library — drop into any Vue 3 project
 
+## Volcengine Ark plans
+
+Agent Plan and Coding Plan share the `ark.<region>.volces.com` host but **not** the path — a wrong path returns 404:
+
+| Plan | Base URL | Model list |
+|------|----------|-----------|
+| Agent Plan (personal / team) | `https://ark.cn-beijing.volces.com/api/plan/v3` | built-in, plan-verified |
+| Coding Plan (personal / team) | `https://ark.cn-beijing.volces.com/api/coding/v3` | built-in, plan-verified |
+| Ark pay-as-you-go (not a preset) | `https://ark.cn-beijing.volces.com/api/v3` | live `/models` + your endpoints |
+
+Both plan endpoints are OpenAI-compatible (`POST /chat/completions`, `Authorization: Bearer`) and only accept **models inside your subscription** — not self-created endpoint IDs. Their `/models` route returns the full Ark catalogue rather than the plan's model list, so this package ships a curated list instead of fetching it. A model outside the plan comes back as `404 UnsupportedModel`, which the form reports as "not in this plan" rather than "model not found".
+
 ## Tech Stack
 
 | Layer | Technology | Port |

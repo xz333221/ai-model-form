@@ -351,6 +351,10 @@ const providers = [
   { id: 'opencode',   url: 'https://opencode.ai/zen/go/v1',                             icon: 'opencode' },
   { id: 'commandcode', url: 'https://api.commandcode.ai/provider/v1',                    icon: 'commandcode' },
   { id: 'agnes',      url: 'https://apihub.agnes-ai.com/v1',                            icon: 'agnes' },
+  // 火山方舟订阅套餐：同一域名，套餐不同则数据面路径不同（/api/plan/v3 与 /api/coding/v3），
+  // 填错会直接 404。两套套餐都只认套餐内的模型名，不是自建 Endpoint ID。
+  { id: 'ark-agent-plan',  url: 'https://ark.cn-beijing.volces.com/api/plan/v3',        icon: 'volcengine-color' },
+  { id: 'ark-coding-plan', url: 'https://ark.cn-beijing.volces.com/api/coding/v3',      icon: 'volcengine-color' },
   { id: 'ollama',     url: 'http://localhost:11434/v1',                                  icon: 'ollama' },
 ];
 

@@ -34,6 +34,8 @@ const PROVIDERS = [
   { id: 'opencode',   label: 'OpenCode Go',           url: 'https://opencode.ai/zen/go/v1' },
   { id: 'commandcode', label: 'Command Code',          url: 'https://api.commandcode.ai/provider/v1' },
   { id: 'agnes',      label: 'Agnes AI',               url: 'https://apihub.agnes-ai.com/v1' },
+  { id: 'ark-agent-plan',  label: '火山方舟 Agent Plan',  url: 'https://ark.cn-beijing.volces.com/api/plan/v3' },
+  { id: 'ark-coding-plan', label: '火山方舟 Coding Plan', url: 'https://ark.cn-beijing.volces.com/api/coding/v3' },
   { id: 'ollama',     label: 'Ollama (本地)',          url: 'http://localhost:11434/v1' },
 ];
 
@@ -169,6 +171,92 @@ async function readErrorBody(response) {
 }
 
 // ============================================================
+// 火山方舟 订阅套餐 Agent Plan / Coding Plan — https://www.volcengine.com/product/ark
+//
+// 两套套餐共用同一个域名，但**数据面路径前缀不同**，填错直接 404：
+//   https://ark.<region>.volces.com/api/plan/v3     Agent Plan（个人版 / 团队版）
+//   https://ark.<region>.volces.com/api/coding/v3   Coding Plan（个人版 / 团队版）
+//   （第三个路径 /api/v3 是平台按量付费，需要自建 Endpoint，不属于套餐预设）
+//
+// 两个端点的调用形状与 OpenAI 兼容一致：POST /chat/completions + Authorization: Bearer。
+// 用户给的接口地址里已含区域，所以不做 region 派生（换成 cn-shanghai 等改 URL 即可）。
+//
+// 鉴权与额度边界（决定用户该填哪把 Key）：
+//   Agent Plan    —— 套餐 Key / 团队席位 Key，三种模态都走套餐（无按量兜底）
+//   Coding Plan   —— 个人版文本通道用**后付费 API Key**（不是另一种"Coding Plan Key"）；
+//                    团队版文本用席位 Key；image/video 不属于本表单的能力范围
+//
+// 两个坑，代码里都绕着走：
+//   1) 这两个端点的 /models 返回的是方舟**全量模型目录**（含向量/视频/已下线模型，
+//      2026-10-10 实测 135 个），不是套餐清单 —— 拿它渲染下拉框会让人以为套餐里
+//      有 qwen3、seedream 这些根本调不通的模型。所以这里只发内置清单，不做实时拉取。
+//   2) 模型不在套餐内时服务端回 **404 UnsupportedModel**（"does not support the
+//      coding/agent plan feature"），语义是"不在套餐里"，不是"模型名写错了"。
+//     把这两个说法混起来会让用户白折腾半天模型名，所以 test 接口单独映射。
+//
+// 内置清单来源：2026-10-10 用真实套餐 Key 逐个 POST /chat/completions 实测
+// （max_tokens=1），只收 200 的。Agent Plan 的成员资格用同一把 Coding Plan Key 也能
+// 判 —— /api/plan/v3 先校验模型再校验鉴权：模型不在套餐 → 404 UnsupportedModel，
+// 模型在套餐 → 放行到鉴权层 → 401。两个清单因此有实质差异（如 doubao-seed-code
+// 只在 Coding Plan，kimi-k2 系只在 Coding Plan，doubao-seed-1-6 系两边都不在）。
+// ============================================================
+
+const ARK_AGENT_PLAN_URL = 'https://ark.cn-beijing.volces.com/api/plan/v3';
+const ARK_CODING_PLAN_URL = 'https://ark.cn-beijing.volces.com/api/coding/v3';
+
+const ARK_PLAN_URLS = new Set([ARK_AGENT_PLAN_URL, ARK_CODING_PLAN_URL]);
+
+const ARK_AGENT_PLAN_MODELS = [
+  'doubao-seed-2-1-pro-260915', 'doubao-seed-2-1-pro-260628', 'doubao-seed-2-1-turbo-260628',
+  'doubao-seed-2-1-lite-260915',
+  'doubao-seed-2-0-pro-260215', 'doubao-seed-2-0-lite-260428', 'doubao-seed-2-0-lite-260215',
+  'doubao-seed-2-0-mini-260428', 'doubao-seed-2-0-mini-260215',
+  'doubao-seed-2-0-code-preview-260215', 'doubao-seed-evolving',
+  'deepseek-v4-pro-ga-260813', 'deepseek-v4-pro-260425',
+  'deepseek-v4-1-flash-260910', 'deepseek-v4-flash-ga-260731',
+  'glm-5-3-flash-260828', 'glm-5-2-260617',
+];
+
+const ARK_CODING_PLAN_MODELS = [
+  'doubao-seed-code', 'doubao-seed-evolving',
+  'doubao-seed-2-1-pro-260915', 'doubao-seed-2-1-pro-260628', 'doubao-seed-2-1-turbo-260628',
+  'doubao-seed-2-1-lite-260915',
+  'doubao-seed-2-0-pro-260215', 'doubao-seed-2-0-mini-260428', 'doubao-seed-2-0-mini-260215',
+  'doubao-seed-2-0-code-preview-260215',
+  'deepseek-v4-pro-ga-260813', 'deepseek-v4-pro-260425',
+  'deepseek-v4-1-flash-260910', 'deepseek-v4-flash-ga-260731',
+  'glm-5-3-flash-260828', 'glm-5-2-260617',
+  'kimi-k2-thinking-251104', 'kimi-k2-turbo-preview-250905', 'kimi-k2-250905',
+];
+
+/**
+ * 套餐端点把"不在套餐里"表达成 404 UnsupportedModel，和"模型名不存在"用同一个状态码。
+ * 只有读到这句专属文案才能确定是套餐外，所以认文案不认状态码。
+ * @param {{code?: string, message?: string}|null} err - readErrorBody 的结果
+ * @param {'agent'|'coding'} plan
+ */
+function isArkPlanModelError(err, plan) {
+  const blob = `${err?.code || ''} ${err?.message || ''}`;
+  // 错误码是 camelCase 的 UnsupportedModel（不是 Command Code 那种 unsupported_model），
+  // 两种写法都认，免得以后网关改名又要来改一遍。
+  return /unsupported[_\s-]?model/i.test(blob) && new RegExp(`does not support the ${plan} plan`, 'i').test(blob);
+}
+
+/** 套餐端点的展示名，用来拼面向用户的错误文案 */
+function arkPlanLabel(url) {
+  return url === ARK_CODING_PLAN_URL ? 'Coding Plan' : 'Agent Plan';
+}
+
+/** 套餐端点上的 404：区分"不在套餐里"与"模型名写错"，两者解法完全不同 */
+function arkPlanNotFoundMessage(url, modelName, err) {
+  const label = arkPlanLabel(url);
+  if (isArkPlanModelError(err, url === ARK_CODING_PLAN_URL ? 'coding' : 'agent'))
+    return `${label} 套餐不含模型 "${modelName}"：请从下拉框里选套餐内的模型，`
+      + `或在火山方舟控制台确认 ${label} 的可用模型清单`;
+  return `模型 "${modelName}" 不存在 (404)`;
+}
+
+// ============================================================
 // Built-in curated model list (no API Key needed)
 // Updated with each package release.
 // ============================================================
@@ -250,6 +338,10 @@ const BUILTIN_MODELS = {
   'https://api.commandcode.ai/provider/v1': COMMAND_CODE_MODELS.map(id =>
     commandCodeFamily(id) === 'messages' ? { id, desc: COMMAND_CODE_ANTHROPIC_DESC } : id
   ),
+  // 火山方舟套餐 — 更新: 2026-10-10（真实套餐 Key 逐个实测，不带 desc 是因为
+  // 这里没有"协议族"要提示，模型名本身就是唯一的坑）
+  [ARK_AGENT_PLAN_URL]: ARK_AGENT_PLAN_MODELS,
+  [ARK_CODING_PLAN_URL]: ARK_CODING_PLAN_MODELS,
 };
 
 // ============================================================
@@ -459,6 +551,11 @@ export function createAiModelMiddleware(options = {}) {
       return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
     }
 
+    // 火山方舟套餐：故意不拉 /models —— 它返回全量目录而非套餐清单，
+    // 混进下拉框会让人误以为套餐里能调 qwen3 / seedream 这些。只发实测过的内置清单。
+    if (ARK_PLAN_URLS.has(ep))
+      return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
+
     // Live fetch when API Key is provided
     if (apiKey) {
       const live = await fetchLiveModels(ep, apiKey, testTimeoutMs);
@@ -538,20 +635,30 @@ export function createAiModelMiddleware(options = {}) {
       if (fetchRes.status === 400) {
         const err = await readErrorBody(fetchRes);
         const blob = `${err?.code || ''} ${err?.message || ''}`;
-        if (/unsupported_model|must be called via|is not supported on this endpoint/i.test(blob))
+        if (/unsupported[_\s-]?model|must be called via|is not supported on this endpoint/i.test(blob))
           return res.json({ ok: false, message: `模型 "${modelName}" 在该接口不可用 (400)${err?.message ? '：' + err.message : ''}` });
+        // 限流 / 配额类 400 不是"探活参数太小被拒"，不能算连接成功，
+        // 否则套餐额度用尽时界面会显示绿色的"连接成功"。
+        if (/rate.?limit|quota|throttl|too many|overload|busy|concurrenc/i.test(blob))
+          return res.json({ ok: false, message: `接口限流或额度不足 (400)${err?.message ? '：' + err.message : ''}` });
         return res.json({ ok: true, message: '连接成功', status: 400 });
       }
-      if (fetchRes.status === 401)
+      if (fetchRes.status === 401) {
+        if (ARK_PLAN_URLS.has(ep))
+          return res.json({ ok: false, message: `API Key 无效或与套餐不匹配 (401)：${arkPlanLabel(ep)} 需要该套餐下发的 Key` });
         return res.json({ ok: false, message: 'API Key 无效或未授权 (401)' });
+      }
       if (fetchRes.status === 403) {
         const hint = (await readErrorBody(fetchRes))?.message || '';
         if (/doesn't include API access/i.test(hint))
           return res.json({ ok: false, message: '当前套餐不含 API 访问权限：Command Code 的 Go 套餐需升级到 GOAT / Pro / Max / Provider 才能调用 API' });
         return res.json({ ok: false, message: `无访问权限 (403)${hint ? '：' + hint : ''}` });
       }
-      if (fetchRes.status === 404)
+      if (fetchRes.status === 404) {
+        if (ARK_PLAN_URLS.has(ep))
+          return res.json({ ok: false, message: arkPlanNotFoundMessage(ep, modelName, await readErrorBody(fetchRes)) });
         return res.json({ ok: false, message: `模型 "${modelName}" 不存在 (404)` });
+      }
       if (fetchRes.status === 410 && endpoint.includes('nvidia.com'))
         return res.json({ ok: false, message: 'NVIDIA 账号缺少 Public API Endpoints 权限 (410)，请在 build.nvidia.com 申请开通后再试' });
       return res.json({ ok: false, message: `服务器返回错误: ${fetchRes.status}` });

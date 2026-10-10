@@ -29,7 +29,7 @@ export default {
   // Actions
   cancel: 'Cancel',
 
-  // Providers — 20 built-in
+  // Providers — 22 built-in
   provider: {
     openai: 'OpenAI',
     anthropic: 'Anthropic (Claude)',
@@ -49,6 +49,8 @@ export default {
     openrouter: 'OpenRouter',
     opencode: 'OpenCode Go (subscription)',
     commandcode: 'Command Code',
+    'ark-agent-plan': 'Volcengine Ark Agent Plan',
+    'ark-coding-plan': 'Volcengine Ark Coding Plan',
     ollama: 'Ollama (local)',
     agnes: 'Agnes AI',
   },

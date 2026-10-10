@@ -29,7 +29,7 @@ export default {
   // Actions
   cancel: '取消',
 
-  // Providers — 20 built-in
+  // Providers — 22 built-in
   provider: {
     openai: 'OpenAI',
     anthropic: 'Anthropic (Claude)',
@@ -49,6 +49,8 @@ export default {
     openrouter: 'OpenRouter',
     opencode: 'OpenCode Go (订阅)',
     commandcode: 'Command Code',
+    'ark-agent-plan': '火山方舟 Agent Plan',
+    'ark-coding-plan': '火山方舟 Coding Plan',
     ollama: 'Ollama (本地)',
     agnes: 'Agnes AI',
   },
