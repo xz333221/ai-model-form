@@ -188,23 +188,26 @@ async function readErrorBody(response) {
 //
 // 两个坑，代码里都绕着走：
 //   1) 这两个端点的 /models 返回的是方舟**全量模型目录**（含向量/视频/已下线模型，
-//      2026-10-10 实测 135 个），不是套餐清单 —— 拿它渲染下拉框会让人以为套餐里
-//      有 qwen3、seedream 这些根本调不通的模型。所以这里只发内置清单，不做实时拉取。
+//      2026-10-27 实测 138 个），不是套餐清单 —— 拿它渲染下拉框，用户会看到一堆
+//      套餐里根本调不通的模型。
+//      2026-10-10 因此**只发内置清单**，代价是上游发了新模型下拉框里永远看不到
+//      （10-17 的 deepseek-v4-1-flash-261017 就漏了一个月）。2026-10-27 用户拍板
+//      反过来：**实时拉 /models**，宁可看到用不了的，也别看不到新发的。内置清单
+//      降级成「没填 Key / 拉取失败」时的兜底，不再是权威清单。
 //   2) 模型不在套餐内时服务端回 **404 UnsupportedModel**（"does not support the
 //      coding/agent plan feature"），语义是"不在套餐里"，不是"模型名写错了"。
 //     把这两个说法混起来会让用户白折腾半天模型名，所以 test 接口单独映射。
+//      注意下拉框现在是全量目录，所以「选得到但调不通」是常态，test 结果才是判据。
 //
-// 内置清单来源：2026-10-10 用真实套餐 Key 逐个 POST /chat/completions 实测
+// 内置兜底清单来源：2026-10-10 用真实套餐 Key 逐个 POST /chat/completions 实测
 // （max_tokens=1），只收 200 的。Agent Plan 的成员资格用同一把 Coding Plan Key 也能
 // 判 —— /api/plan/v3 先校验模型再校验鉴权：模型不在套餐 → 404 UnsupportedModel，
 // 模型在套餐 → 放行到鉴权层 → 401。两个清单因此有实质差异（如 doubao-seed-code
 // 只在 Coding Plan，kimi-k2 系只在 Coding Plan，doubao-seed-1-6 系两边都不在）。
 //
-// 2026-10-27 增补 DeepSeek-V4.1-Flash 1017 版（deepseek-v4-1-flash-261017 /
-// -economy-261017，同权重、经济版八折但更慢），同样 POST 实测 200 收进来的。
-// ⚠️ 这份清单会随时间过期，而且**不会自己更新** —— 上面第 1 条那个「不拉 /models」
-// 的决定意味着上游发新模型时下拉框里看不到，只能人工按上面那套实测流程补一行。
-// 用户报「为什么没有 XXX」时先 curl 一次 /models 看目录里有没有，再 POST 判套餐归属。
+// 2026-10-27 另补了 DeepSeek-V4.1-Flash 1017 版（deepseek-v4-1-flash-261017 /
+// -economy-261017，同权重、经济版八折但更慢）。改成实时拉取后这两条只影响
+// 「没 Key 时的兜底」，不用再为漏模型改这份数组了。
 // ============================================================
 
 const ARK_AGENT_PLAN_URL = 'https://ark.cn-beijing.volces.com/api/plan/v3';
@@ -559,10 +562,17 @@ export function createAiModelMiddleware(options = {}) {
       return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
     }
 
-    // 火山方舟套餐：故意不拉 /models —— 它返回全量目录而非套餐清单，
-    // 混进下拉框会让人误以为套餐里能调 qwen3 / seedream 这些。只发实测过的内置清单。
-    if (ARK_PLAN_URLS.has(ep))
+    // 火山方舟套餐：**实时拉** /models（2026-10-27 用户拍板的方向，理由见文件头）。
+    // 这个目录是全量模型目录而不是套餐清单，所以会混进 qwen3 / seedream / 已下线
+    // 模型 —— 已知且接受：宁可下拉框里看到用不了的，也别看不到上游新发的。
+    // 没有 Key 时 /models 回 401，fetchLiveModels 返 null → 退回内置兜底清单。
+    if (ARK_PLAN_URLS.has(ep)) {
+      if (apiKey) {
+        const live = await fetchLiveModels(ep, apiKey, testTimeoutMs);
+        if (live && live.length) return res.json({ models: live, source: 'live' });
+      }
       return res.json({ models: builtin, source: builtin.length ? 'builtin' : 'empty' });
+    }
 
     // Live fetch when API Key is provided
     if (apiKey) {
