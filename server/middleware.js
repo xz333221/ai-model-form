@@ -199,6 +199,12 @@ async function readErrorBody(response) {
 // 判 —— /api/plan/v3 先校验模型再校验鉴权：模型不在套餐 → 404 UnsupportedModel，
 // 模型在套餐 → 放行到鉴权层 → 401。两个清单因此有实质差异（如 doubao-seed-code
 // 只在 Coding Plan，kimi-k2 系只在 Coding Plan，doubao-seed-1-6 系两边都不在）。
+//
+// 2026-10-27 增补 DeepSeek-V4.1-Flash 1017 版（deepseek-v4-1-flash-261017 /
+// -economy-261017，同权重、经济版八折但更慢），同样 POST 实测 200 收进来的。
+// ⚠️ 这份清单会随时间过期，而且**不会自己更新** —— 上面第 1 条那个「不拉 /models」
+// 的决定意味着上游发新模型时下拉框里看不到，只能人工按上面那套实测流程补一行。
+// 用户报「为什么没有 XXX」时先 curl 一次 /models 看目录里有没有，再 POST 判套餐归属。
 // ============================================================
 
 const ARK_AGENT_PLAN_URL = 'https://ark.cn-beijing.volces.com/api/plan/v3';
@@ -213,6 +219,7 @@ const ARK_AGENT_PLAN_MODELS = [
   'doubao-seed-2-0-mini-260428', 'doubao-seed-2-0-mini-260215',
   'doubao-seed-2-0-code-preview-260215', 'doubao-seed-evolving',
   'deepseek-v4-pro-ga-260813', 'deepseek-v4-pro-260425',
+  'deepseek-v4-1-flash-261017', 'deepseek-v4-1-flash-economy-261017',
   'deepseek-v4-1-flash-260910', 'deepseek-v4-flash-ga-260731',
   'glm-5-3-flash-260828', 'glm-5-2-260617',
 ];
@@ -224,6 +231,7 @@ const ARK_CODING_PLAN_MODELS = [
   'doubao-seed-2-0-pro-260215', 'doubao-seed-2-0-mini-260428', 'doubao-seed-2-0-mini-260215',
   'doubao-seed-2-0-code-preview-260215',
   'deepseek-v4-pro-ga-260813', 'deepseek-v4-pro-260425',
+  'deepseek-v4-1-flash-261017', 'deepseek-v4-1-flash-economy-261017',
   'deepseek-v4-1-flash-260910', 'deepseek-v4-flash-ga-260731',
   'glm-5-3-flash-260828', 'glm-5-2-260617',
   'kimi-k2-thinking-251104', 'kimi-k2-turbo-preview-250905', 'kimi-k2-250905',
