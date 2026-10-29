@@ -53,5 +53,6 @@ export default {
     'ark-coding-plan': '火山方舟 Coding Plan',
     ollama: 'Ollama (本地)',
     agnes: 'Agnes AI',
+    opendesign: 'OpenDesign (AMR)',
   },
 };

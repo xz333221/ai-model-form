@@ -53,5 +53,6 @@ export default {
     'ark-coding-plan': 'Volcengine Ark Coding Plan',
     ollama: 'Ollama (local)',
     agnes: 'Agnes AI',
+    opendesign: 'OpenDesign (AMR)',
   },
 };

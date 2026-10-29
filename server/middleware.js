@@ -34,6 +34,7 @@ const PROVIDERS = [
   { id: 'opencode',   label: 'OpenCode Go',           url: 'https://opencode.ai/zen/go/v1' },
   { id: 'commandcode', label: 'Command Code',          url: 'https://api.commandcode.ai/provider/v1' },
   { id: 'agnes',      label: 'Agnes AI',               url: 'https://apihub.agnes-ai.com/v1' },
+  { id: 'opendesign', label: 'OpenDesign (AMR)',       url: 'https://amr-link.open-design.ai/v1' },
   { id: 'ark-agent-plan',  label: '火山方舟 Agent Plan',  url: 'https://ark.cn-beijing.volces.com/api/plan/v3' },
   { id: 'ark-coding-plan', label: '火山方舟 Coding Plan', url: 'https://ark.cn-beijing.volces.com/api/coding/v3' },
   { id: 'ollama',     label: 'Ollama (本地)',          url: 'http://localhost:11434/v1' },
@@ -169,6 +170,37 @@ async function readErrorBody(response) {
     return null;
   }
 }
+
+// ============================================================
+// OpenDesign AMR — https://open-design.ai
+//
+// 官方托管的模型路由服务（AMR = Agentic Model Router）。Key 在控制台生成：
+//   https://open-design.ai/cloud/api-keys?workspaceId=<workspace>
+// 一把 sk-amr- 开头的 Key 就能调全部模型，按 token 从 workspace 余额里扣。
+//
+// 三处和别的供应商不一样，填错会很难看出来：
+//  1) **数据面域名是 amr-link.open-design.ai，不是站点主域名**。主域名是 SPA，
+//     任何 /v1/... 都会回 index.html（200 + 一段 HTML），不会报错 —— 填成
+//     https://open-design.ai/v1 只会得到"模型列表解析失败"，看不出是域名错了。
+//  2) /models 需要鉴权（无 Key 回 401），所以没填 Key 时只能用内置兜底清单。
+//  3) 协议只有一套：OpenAI Chat Completions + Authorization: Bearer，
+//     没有 OpenCode / Command Code 那种同域名多协议族的问题。
+//
+// 响应里 deepseek / gpt 系会额外带 reasoning 字段，但 choices[].message.content
+// 仍是标准形状，本表单只做连通性测试，不需要特殊处理。
+// ============================================================
+
+const OPENDESIGN_URL = 'https://amr-link.open-design.ai/v1';
+
+// 内置兜底清单：2026-10-29 用真实 Key 拉 /models 得到（13 个，全部 enabled）。
+// 这个网关换模型比较勤，实时拉取成功时以线上为准，这里只保证"没填 Key 也有东西可选"。
+const OPENDESIGN_MODELS = [
+  'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp',
+  'claude-haiku-5.5', 'gpt-6-luna',
+  'glm-5.3-flash', 'glm-5.3-flashx',
+  'kimi-k2.7-code', 'minimax-m3.1-flash',
+  'mimo-v2.6-pro', 'mimo-v2.6-flash', 'hy4-preview',
+];
 
 // ============================================================
 // 火山方舟 订阅套餐 Agent Plan / Coding Plan — https://www.volcengine.com/product/ark
@@ -325,6 +357,8 @@ const BUILTIN_MODELS = {
   'https://apihub.agnes-ai.com/v1': [
     'agnes-2.5-pro-alpha', 'agnes-2.0-flash', 'agnes-image-2.0', 'agnes-video-v2.0',
   ],
+  // OpenDesign AMR — 更新: 2026-10-29（真实 Key 拉 /models 得到，13 个全部 enabled）
+  [OPENDESIGN_URL]: OPENDESIGN_MODELS,
   'http://localhost:11434/v1': [
     'qwen2.5', 'llama3.1', 'mistral', 'deepseek-r1:7b', 'qwen3', 'llama4',
   ],
